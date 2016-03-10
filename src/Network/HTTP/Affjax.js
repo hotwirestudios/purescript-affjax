@@ -8,15 +8,18 @@
 // jshint maxparams: 5
 exports._ajax = function (mkHeader, options, canceler, errback, callback) {
   var platformSpecific = { };
+  var usingReactNative = React !== undefined && React.Platform !== undefined && React.Platform.OS !== undefined;
   if (typeof module !== "undefined" && module.require) {
     // We are on node.js
     platformSpecific.newXHR = function () {
-      var XHR = module.require("xhr2");
+      const packageName = "xhr2";
+      var XHR = module.require(packageName);
       return new XHR();
     };
 
     platformSpecific.fixupUrl = function (url) {
-      var urllib = module.require("url");
+      const packageName = "url";
+      var urllib = module.require(packageName);
       var u = urllib.parse(url);
       u.protocol = u.protocol || "http:";
       u.hostname = u.hostname || "localhost";
@@ -26,6 +29,18 @@ exports._ajax = function (mkHeader, options, canceler, errback, callback) {
     platformSpecific.getResponse = function (xhr) {
       return xhr.response;
     };
+  } else if (usingReactNative) {
+      platformSpecific.newXHR = function () {
+        return new XMLHttpRequest();
+      };
+
+      platformSpecific.fixupUrl = function (url) {
+        return url || "/";
+      };
+
+      platformSpecific.getResponse = function (xhr) {
+        return xhr.responseText;
+      };
   } else {
     // We are in the browser
     platformSpecific.newXHR = function () {
@@ -55,10 +70,15 @@ exports._ajax = function (mkHeader, options, canceler, errback, callback) {
         errback(e)();
       }
     }
-    xhr.onerror = function () {
-      errback(new Error("AJAX request failed: " + options.method + " " + options.url))();
+    xhr.onerror = function (e) {
+      errback(new Error("AJAX request failed: " + options.method + " " + options.url + "; " + e))();
     };
     xhr.onload = function () {
+      if (usingReactNative && xhr.status === 0) {
+        xhr.onerror(xhr.responseText);
+        return;
+      }
+
       callback({
         status: xhr.status,
         headers: xhr.getAllResponseHeaders().split("\n")
@@ -86,4 +106,3 @@ exports._cancelAjax = function (xhr, cancelError, errback, callback) {
     return callback(true)();
   };
 };
-
