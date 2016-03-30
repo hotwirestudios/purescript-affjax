@@ -18,7 +18,6 @@
     "output",
     "test",
     "tmp",
-    "bower.json",
     "gulpfile.js",
     "package.json"
   ],
